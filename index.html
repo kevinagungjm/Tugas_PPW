@@ -636,8 +636,9 @@ file_path = "berita_.csv"
 df = pd.read_csv(file_path, engine='python', encoding='utf-8', on_bad_lines='skip')
 </code></pre>
       </div>
+      
       <div class="code-box">
-    <pre><code class="language-python">
+<pre><code class="language-python">
 #membaca data
 col_lengths = {col: df[col].astype(str).map(len).median() for col in df.columns}
 col_uniques = {col: df[col].nunique(dropna=True) for col in df.columns}
@@ -650,7 +651,7 @@ print("Text column:", text_col, "Label column:", label_col)
 df = df[[text_col, label_col]].rename(columns={text_col: 'text', label_col: 'label'}).dropna()
 df['text'] = df['text'].astype(str)
 df['label'] = df['label'].astype(str)
-  </code></pre>
+</code></pre>
       </div>
 
        <div class="code-box">
@@ -871,6 +872,7 @@ for c in sorted(df['cluster'].unique()):
 </body>
 
 </html>
+
 
 
 
