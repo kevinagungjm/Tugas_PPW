@@ -762,6 +762,103 @@ plt.show()
 </code></pre>
       </div>
   </div>
+
+     <!-- UTS -->
+    <div id="uts2" class="content">
+      <h1>Analisa Clustering</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+# 1. Import library
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+# 2. Upload file CSV 
+from google.colab import files
+uploaded = files.upload()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+df = pd.read_csv("spam (1).csv", encoding="latin-1")
+df = df[['id', 'Text']]
+
+df.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+  df.isnull().sum()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+import re
+import string
+
+def preprocess(text):
+    text = str(text).lower()                             # lowercase
+    text = re.sub(r"http\S+|www\S+|https\S+", "", text)  # remove URL
+    text = re.sub(r"\d+", "", text)                      # remove numbers
+    text = text.translate(str.maketrans("", "", string.punctuation))  # remove punctuation
+    text = re.sub(r"[^a-zA-Z\s]", "", text)              # keep only letters
+    text = re.sub(r"\s+", " ", text).strip()             # remove extra spaces
+    return text
+
+df['clean_text'] = df['Text'].apply(preprocess)
+
+df[['Text', 'clean_text']].head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+texts = df['clean_text']
+
+vectorizer = TfidfVectorizer(stop_words='english')
+X = vectorizer.fit_transform(texts)
+X.shape
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+kmeans = KMeans(n_clusters=5, random_state=0)
+labels = kmeans.fit_predict(X)
+
+df['cluster'] = labels
+df.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X.toarray())
+
+plt.figure(figsize=(10,6))
+plt.scatter(X_pca[:,0], X_pca[:,1], c=labels)
+plt.title("Clustering Dokumen Email (TF-IDF + KMeans)")
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.show()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+for c in sorted(df['cluster'].unique()):
+    print(f"\n===== CLUSTER {c} =====\n")
+    print(df[df['cluster'] == c]['Text'].head(5))
+</code></pre>
+      </div>
+  </div> 
 </div>
 
   <!-- Script untuk switch konten -->
@@ -773,4 +870,5 @@ plt.show()
     }
   </script>
 </body>
+
 </html>
