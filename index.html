@@ -491,6 +491,196 @@ news_result.to_excel('hasil_preprocessingg_berita.xlsx', index=False)
       </div>
     </div>
 
+    <!-- Tugas 6 -->
+    <div id="tugas6" class="content">
+      <h1>TF-IDF & Word Embedding</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install -q sentence-transformers scikit-learn pandas matplotlib
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv("data.csv", usecols=['title', 'content'])
+
+df['title'] = df['title'].fillna("").astype(str)
+df['content'] = df['content'].fillna("").astype(str)
+
+df['text'] = (df['title'].str.strip() + ". " + df['content'].str.strip()).str.strip()
+
+print("Loaded:", len(df))
+df.head()
+</code></pre>
+      </div>
+
+     
+       <div class="code-box">
+<pre><code class="language-python">
+import re
+
+def preprocess(text):
+    t = text.lower()
+    t = re.sub(r"\s+", " ", t)
+    return t.strip()
+
+df['text_clean'] = df['text'].apply(preprocess)
+
+MAX_CHARS = 2000
+df['text_trunc'] = df['text_clean'].apply(lambda x: x[:MAX_CHARS])
+
+df[['title','text_trunc']].head()
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
+
+texts = df['text_trunc'].tolist()
+
+vectorizer = TfidfVectorizer(max_features=8000, ngram_range=(1,2), min_df=2)
+X_tfidf = vectorizer.fit_transform(texts)
+terms = vectorizer.get_feature_names_out()
+
+print("TF-IDF shape:", X_tfidf.shape)
+
+def find_best_k(X, kmin=2, kmax=6):
+    scores = {}
+    for k in range(kmin, kmax+1):
+        km = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = km.fit_predict(X)
+        if len(set(labels)) == 1:
+            scores[k] = -1
+        else:
+            scores[k] = silhouette_score(X, labels)
+        print(f"k={k} -> silhouette={scores[k]:.4f}")
+    return scores
+
+scores = find_best_k(X_tfidf, 2, 6)
+
+plt.plot(list(scores.keys()), list(scores.values()), marker='o')
+plt.xlabel("k")
+plt.ylabel("Silhouette")
+plt.title("TF-IDF Silhouette Scores")
+plt.grid(True)
+plt.show()
+
+best_k = max(scores, key=scores.get)
+best_k
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+k_tfidf = best_k
+km_tfidf = KMeans(n_clusters=k_tfidf, random_state=42, n_init=20)
+df['cluster_tfidf'] = km_tfidf.fit_predict(X_tfidf)
+
+def top_terms(km, terms, topn=12):
+    centers = km.cluster_centers_
+    result = {}
+    for i, center in enumerate(centers):
+        idx = center.argsort()[-topn:][::-1]
+        result[i] = [terms[j] for j in idx]
+    return result
+
+top_terms_tfidf = top_terms(km_tfidf, terms)
+
+top_terms_tfidf
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+
+texts_for_embed = df['text_trunc'].tolist()
+
+embeddings = model.encode(
+    texts_for_embed,
+    batch_size=64,
+    show_progress_bar=True,
+    convert_to_numpy=True
+)
+
+embeddings.shape
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+k_embed = k_tfidf  # pakai jumlah cluster sama dengan TF-IDF
+km_embed = KMeans(n_clusters=k_embed, random_state=42, n_init=20)
+df['cluster_embed'] = km_embed.fit_predict(embeddings)
+
+top_terms_embed = {}
+for c in range(k_embed):
+    idxs = np.where(df['cluster_embed'] == c)[0]
+    if len(idxs) == 0:
+        top_terms_embed[c] = []
+        continue
+    avg = X_tfidf[idxs].mean(axis=0)
+    avg = np.asarray(avg).ravel()
+    best_idx = avg.argsort()[-12:][::-1]
+    top_terms_embed[c] = [terms[i] for i in best_idx]
+
+top_terms_embed
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+sil_tfidf = silhouette_score(X_tfidf, df['cluster_tfidf'])
+sil_embed = silhouette_score(embeddings, df['cluster_embed'])
+
+sil_tfidf, sil_embed
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+def suggest_label(terms):
+    if not terms:
+        return "unknown"
+    return "_".join(terms[:3])
+
+suggest_tfidf = {c: suggest_label(t) for c, t in top_terms_tfidf.items()}
+suggest_embed = {c: suggest_label(t) for c, t in top_terms_embed.items()}
+
+df['label_tfidf'] = df['cluster_tfidf'].map(suggest_tfidf)
+df['label_embed'] = df['cluster_embed'].map(suggest_embed)
+
+df[['title','content','cluster_tfidf','label_tfidf','cluster_embed','label_embed']].to_csv(
+    "data_clustered.csv",
+    index=False
+)
+
+df.head()
+
+</code></pre>
+      </div>
+        <div class="code-box">
+<pre><code class="language-python">
+for c in sorted(df['cluster_tfidf'].unique()):
+    print(f"\n=== TF-IDF CLUSTER {c} | {suggest_tfidf[c]} ===")
+    samp = df[df['cluster_tfidf']==c].sample(min(5, len(df[df['cluster_tfidf']==c])), random_state=42)
+    for t in samp['title']:
+        print("-", t[:120])
+
+for c in sorted(df['cluster_embed'].unique()):
+    print(f"\n=== EMBED CLUSTER {c} | {suggest_embed[c]} ===")
+    samp = df[df['cluster_embed']==c].sample(min(5, len(df[df['cluster_embed']==c])), random_state=42)
+    for t in samp['title']:
+        print("-", t[:120])
+</code></pre>
+      </div>
+    </div>
+
     <!-- Tugas 7 -->
     <div id="tugas7" class="content">
       <h1>Crawling Berita Online</h1>
@@ -875,6 +1065,7 @@ for c in sorted(df['cluster'].unique()):
 </body>
 
 </html>
+
 
 
 
