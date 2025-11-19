@@ -650,6 +650,8 @@ print("Text column:", text_col, "Label column:", label_col)
 df = df[[text_col, label_col]].rename(columns={text_col: 'text', label_col: 'label'}).dropna()
 df['text'] = df['text'].astype(str)
 df['label'] = df['label'].astype(str)
+  </code></pre>
+      </div>
 
        <div class="code-box">
 <pre><code class="language-python">
@@ -668,7 +670,6 @@ def preprocess_simple(text):
 
 df['clean'] = df['text'].apply(preprocess_simple)
 print(df[['text', 'clean']].head())
-
 </code></pre>
       </div>
 
@@ -870,5 +871,6 @@ for c in sorted(df['cluster'].unique()):
 </body>
 
 </html>
+
 
 
