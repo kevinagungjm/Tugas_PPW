@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kumpulan Tugas</title>
+  <link rel="stylesheet" href="style.css">
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+  <style>
+    .content { display: none; }
+    .content.active { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <img src="profil.jpg" alt="Foto Profil">
+    <h2>Kevin Agung J Mahendra</h2>
+    <h2>200411100085</h2>
+    <ul>
+      <li><a href="#" onclick="showContent('tugas2')">Crawling PTA</a></li>
+      <li><a href="#" onclick="showContent('tugas3')">Crawling Berita Online</a></li>
+      <li><a href="#" onclick="showContent('tugas4')">Preprocessing PTA</a></li>
+      <li><a href="#" onclick="showContent('tugas5')">Preprocessing Berita Online</a></li>
+      <li><a href="#" onclick="showContent('tugas6')">TF-IDF & Word Embedding</a></li>
+      <li><a href="#" onclick="showContent('tugas7')">LDA</a></li>
+      <li><a href="#" onclick="showContent('uts1')">UTS 1</a></li>
+      <li><a href="#" onclick="showContent('uts2')">UTS 2</a></li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <!-- Tugas 2 -->
+    <div id="tugas2" class="content active">
+      <h1>Crawling PTA</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import csv
+import pandas as pd
+hades = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'}
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+def scrape_TA(page):
+  global hades
+  data=[]
+  for p in range(1,page+1):
+    if p==1 :
+      URL = "https://pta.trunojoyo.ac.id/c_search/byprod/10/"
+    else :
+      URL = f"https://pta.trunojoyo.ac.id/c_search/byprod/10/{p}"
+    request = req.get(URL,hades).text
+    soup = bs(request, 'lxml')
+    prodi = soup.find_all('div',{'id':'begin'})
+    for pro in prodi:
+      prod = pro.find('h2').text
+    jur = prod[-18:]
+    ul = soup.find('ul', 'items list_style')
+    li = ul.find_all('li', {'data-id':'id-1'})
+    for x in li:
+      link = x.find('a','gray button')['href']
+      request2 = req.get(link, hades).text
+      soup2 = bs(request2, 'lxml')
+      abst= soup2.find('p',{'align':'justify'}).text.replace('\r','').replace('\n','')
+      main_div = soup2.find('div', style=lambda s: s and 'margin: 15px' in s)
+      abstrak_id = ""
+      abstrak_en = ""
+      if main_div:
+          b_tags = main_div.find_all('b')
+          for b in b_tags:
+              text = b.text.strip().lower()
+              if "abstraksi" in text:
+                  p_tag = b.find_next('p')
+                  abstrak_id = p_tag.text.strip() if p_tag else ""
+              elif "abstraction" in text:
+                  p_tag = b.find_next('p')
+                  abstrak_en = p_tag.text.strip() if p_tag else ""
+      NPM = x.find('a','gray button')['href'][-12:]
+      headline = x.find('a', 'title').text.replace('\r','').replace('\n','')
+      pembimbing_pertama = x.select_one('span:contains("Dosen Pembimbing I")').text.split(' : ')[1]
+      pembimbing_kedua = x.select_one('span:contains("Dosen Pembimbing II")').text.split(' :')[1]
+      data.append([NPM,pembimbing_pertama,pembimbing_kedua,headline,abstrak_id,abstrak_en,jur])
+      print([NPM,pembimbing_pertama,pembimbing_kedua,headline,abstrak_id,abstrak_en,jur])
+
+  return data
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+data_TA=scrape_TA(2)
+data_TA_result=pd.DataFrame(data_TA)
+data_TA_result.columns = ["NPM","Pembimbing Pertama","Pembimbing Kedua","Judul","Abstrak","Abstraction","jurusan"]
+data_TA_result
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+data_TA_result.to_csv('data_scrap_PTA.csv')
+data_TA_result.to_excel('data_scrap_PTA.xlsx', index=False)
+</code></pre>
+      </div>
+    </div>
+
+    <!-- Tugas 3 -->
+    <div id="tugas3" class="content">
+      <h1>Crawling Berita Online</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import csv
+import pandas as pd
+hades = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'}
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+from bs4 import BeautifulSoup as bs
+import requests as req
+
+def scrape_detik(page):
+    global hades  # header atau session request
+    data = []
+
+    for p in range(1, page + 1):
+        print(f"Scraping page {p} ...")
+        url = f"https://www.detik.com/search/searchall?query=puan+maharani&siteid=2&sortby=time&page={p}"
+        request = req.get(url, hades).text
+
+        soup = bs(request, 'lxml')
+        news_list = soup.find('div', class_='list-content')
+
+        if news_list is None:
+            print(f"Page {p}: div list-content tidak ditemukan")
+            continue
+
+        news_article = news_list.find_all('article')
+        for x in news_article:
+            # ambil judul
+            title_tag = x.find('h3', class_='media__title')
+            title = title_tag.text.strip() if title_tag else ""
+
+            # ambil deskripsi
+            desc_tag = x.find('div', class_='media__desc')
+            desc = desc_tag.text.strip() if desc_tag else ""
+
+            data.append([title, desc])
+
+    return data
+
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+news=scrape_detik(50)
+news_result=pd.DataFrame(news)
+news_result.columns = ["Judul", "Konten"]
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+news_result.to_csv('berita.csv',index=False)
+news_result.to_excel('berita.xlsx', index=False)
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+#read in the data using pandas
+url = pd.read_csv('/content/berita.csv')
+url.head(50)
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+data_TA_result.to_csv('data_scrap_PTA.csv')
+data_TA_result.to_excel('data_scrap_PTA.xlsx', index=False)
+</code></pre>
+      </div>
+
+    </div>
+
+    <!-- Tugas 4 -->
+    <div id="tugas4" class="content">
+      <h1>Preprocessing PTA</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import csv
+import pandas as pd
+hades = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'}
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+def scrape_TA(page):
+  global hades
+  data=[]
+  for p in range(1,page+1):
+    if p==1 :
+      URL = "https://pta.trunojoyo.ac.id/c_search/byprod/10/"
+    else :
+      URL = f"https://pta.trunojoyo.ac.id/c_search/byprod/10/{p}"
+    request = req.get(URL,hades).text
+    #var bs yang menyimpan data request berupa html
+    soup = bs(request, 'lxml')
+    prodi = soup.find_all('div',{'id':'begin'})
+    for pro in prodi:
+      prod = pro.find('h2').text
+    jur = prod[-18:]
+    ul = soup.find('ul', 'items list_style')
+    li = ul.find_all('li', {'data-id':'id-1'})
+    for x in li:
+      link = x.find('a','gray button')['href']
+      request2 = req.get(link, hades).text
+      soup2 = bs(request2, 'lxml')
+      abst= soup2.find('p',{'align':'justify'}).text.replace('\r','').replace('\n','')
+      # ambil abstrak ID dan EN
+      main_div = soup2.find('div', style=lambda s: s and 'margin: 15px' in s)
+      abstrak_id = ""
+      abstrak_en = ""
+      if main_div:
+          b_tags = main_div.find_all('b')
+          for b in b_tags:
+              text = b.text.strip().lower()
+              if "abstraksi" in text:
+                  p_tag = b.find_next('p')
+                  abstrak_id = p_tag.text.strip() if p_tag else ""
+              elif "abstraction" in text:
+                  p_tag = b.find_next('p')
+                  abstrak_en = p_tag.text.strip() if p_tag else ""
+      NPM = x.find('a','gray button')['href'][-12:]
+      headline = x.find('a', 'title').text.replace('\r','').replace('\n','')
+      pembimbing_pertama = x.select_one('span:contains("Dosen Pembimbing I")').text.split(' : ')[1]
+      pembimbing_kedua = x.select_one('span:contains("Dosen Pembimbing II")').text.split(' :')[1]
+      data.append([NPM,pembimbing_pertama,pembimbing_kedua,headline,abstrak_id,abstrak_en,jur])
+      print([NPM,pembimbing_pertama,pembimbing_kedua,headline,abstrak_id,abstrak_en,jur])
+
+  return data
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+data_TA=scrape_TA(2)
+# data_TA=scrape_TA(172)
+data_TA_result=pd.DataFrame(data_TA)
+data_TA_result.columns = ["NPM","Pembimbing Pertama","Pembimbing Kedua","Judul","Abstrak","Abstraction","jurusan"]
+data_TA_result
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install Sastrawi
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import pandas as pd
+import re, string
+
+import nltk
+from nltk.tokenize import word_tokenize
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
+
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+import re
+import string
+from bs4 import BeautifulSoup
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+from nltk.tokenize import word_tokenize
+
+# Buat stemmer & stopword remover
+stemmer = StemmerFactory().create_stemmer()
+stopword = StopWordRemoverFactory().create_stop_word_remover()
+
+# Fungsi cleaning
+def clean_text(text):
+    if not isinstance(text, str):
+        return ""
+    text = text.lower()  # huruf kecil
+    text = re.sub(r'\d+', '', text)  # hapus angka
+    text = text.translate(str.maketrans('', '', string.punctuation))  # hapus tanda baca
+    text = re.sub(r'\s+', ' ', text)  # rapikan spasi
+    text = BeautifulSoup(text, "html.parser").get_text()  # hapus tag HTML
+    return text.strip()
+
+# 1. Cleaning abstrak
+data_TA_result["clean_text"] = data_TA_result["Abstrak"].apply(clean_text)
+
+# 2. Hapus stopword
+data_TA_result["no_stopword"] = data_TA_result["clean_text"].apply(lambda x: stopword.remove(x))
+
+# 3. Stemming (langsung kalimat penuh)
+data_TA_result["Abstrak_Stem"] = data_TA_result["no_stopword"].apply(lambda x: stemmer.stem(x))
+
+# 4. Tokenisasi setelah stemming
+data_TA_result["Abstrak_Token"] = data_TA_result["Abstrak_Stem"].apply(lambda x: word_tokenize(x))
+
+# Tampilkan hasil
+print(data_TA_result[["Judul","Abstrak","clean_text","no_stopword","Abstrak_Stem","Abstrak_Token"]].head())
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+data_TA_result.to_csv('hasil_preprocessing.csv')
+data_TA_result.to_excel('hasil_preprocessing.xlsx', index=False)
+</code></pre>
+      </div>
+    </div>
+
+    <!-- Tugas 5 -->
+    <div id="tugas5" class="content">
+      <h1>Preprocessing Berita Online</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import csv
+import pandas as pd
+hades = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'}
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+from bs4 import BeautifulSoup as bs
+import requests as req
+
+def scrape_detik(page):
+    global hades
+    data = []
+
+    for p in range(1, page + 1):
+        print(f"Scraping page {p} ...")
+        url = f"https://www.detik.com/search/searchall?query=puan+maharani&siteid=2&sortby=time&page={p}"
+        request = req.get(url, hades).text
+
+        soup = bs(request, 'lxml')
+        news_list = soup.find('div', class_='list-content')
+
+        if news_list is None:
+            print(f"Page {p}: div list-content tidak ditemukan")
+            continue
+
+        news_article = news_list.find_all('article')
+        for x in news_article:
+            # ambil judul
+            title_tag = x.find('h3', class_='media__title')
+            title = title_tag.text.strip() if title_tag else ""
+
+            # ambil deskripsi
+            desc_tag = x.find('div', class_='media__desc')
+            desc = desc_tag.text.strip() if desc_tag else ""
+
+            data.append([title, desc])
+
+    return data
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+news=scrape_detik(50)
+news_result=pd.DataFrame(news)
+news_result.columns = ["Judul", "Konten"]
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+news_result.to_csv('berita.csv',index=False)
+news_result.to_excel('berita.xlsx', index=False)
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+#read in the data using pandas
+url = pd.read_csv('/content/berita.csv')
+url.head(50)
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+!pip install Sastrawi
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+import requests as req
+from bs4 import BeautifulSoup as bs
+import pandas as pd
+import re, string
+
+import nltk
+from nltk.tokenize import word_tokenize
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
+
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+import re
+import string
+from bs4 import BeautifulSoup
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+from nltk.tokenize import word_tokenize
+
+# Buat stemmer & stopword remover
+stemmer = StemmerFactory().create_stemmer()
+stopword = StopWordRemoverFactory().create_stop_word_remover()
+
+# Fungsi cleaning
+def clean_text(text):
+    if not isinstance(text, str):
+        return ""
+    text = text.lower()  # huruf kecil
+    text = re.sub(r'\d+', '', text)  # hapus angka
+    text = text.translate(str.maketrans('', '', string.punctuation))  # hapus tanda baca
+    text = re.sub(r'\s+', ' ', text)  # hapus spasi berlebih
+    text = BeautifulSoup(text, "html.parser").get_text()  # hapus tag HTML
+    return text.strip()
+
+# 1. Cleaning
+news_result["clean_text"] = news_result["Konten"].apply(clean_text)
+
+# 2. Hapus stopword
+news_result["no_stopword"] = news_result["clean_text"].apply(lambda x: stopword.remove(x))
+
+# 3. Stemming (langsung ke teks penuh)
+news_result["news_Stem"] = news_result["no_stopword"].apply(lambda x: stemmer.stem(x))
+
+# 4. Tokenisasi setelah stemming
+news_result["news_Token"] = news_result["news_Stem"].apply(lambda x: word_tokenize(x))
+
+# Tampilkan hasil
+print(news_result[["Judul","Konten","clean_text","no_stopword","news_Stem","news_Token"]].head())
+
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+news_result.to_csv('hasil_preprocessingg_berita.csv')
+news_result.to_excel('hasil_preprocessingg_berita.xlsx', index=False)
+</code></pre>
+      </div>
+    </div>
+
+    <!-- Tugas 7 -->
+    <div id="tugas7" class="content">
+      <h1>Crawling Berita Online</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install gensim
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+import numpy as np
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from gensim import corpora, models
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import warnings
+warnings.filterwarnings('ignore')
+
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+df = pd.read_csv("abcnews-date-text.csv")
+
+print("Jumlah data:", len(df))
+print(df.head())
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+texts = df['headline_text'].astype(str)
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
+
+def preprocess(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', '', text)
+    tokens = [w for w in text.split() if len(w) > 2 and w not in stop_words]
+    tokens = [lemmatizer.lemmatize(w) for w in tokens]
+    return tokens
+
+df['tokens'] = texts.apply(preprocess)
+
+print("Contoh hasil tokenisasi:", df['tokens'].iloc[0])
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+dictionary = corpora.Dictionary(df['tokens'])
+corpus = [dictionary.doc2bow(text) for text in df['tokens']]
+print("Jumlah kata unik di kamus:", len(dictionary))
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+num_topics = 8  # jumlah topik bisa disesuaikan (contoh: 5–10)
+lda_model = models.LdaModel(corpus=corpus,
+                            id2word=dictionary,
+                            num_topics=num_topics,
+                            passes=10,
+                            random_state=42,
+                            chunksize=2000,
+                            per_word_topics=True)
+
+print("\n=== Contoh Topik dari LDA ===")
+for idx, topic in lda_model.print_topics(num_words=5):
+    print(f"Topik {idx}: {topic}")
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+def get_topic_vector(model, bow, num_topics):
+    topic_dist = model.get_document_topics(bow, minimum_probability=0)
+    topic_vec = [prob for (_, prob) in sorted(topic_dist, key=lambda x: x[0])]
+    return topic_vec
+
+X = [get_topic_vector(lda_model, bow, num_topics) for bow in corpus]
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Uji dengan 8 cluster (sama seperti jumlah topik)
+kmeans = KMeans(n_clusters=num_topics, random_state=42)
+clusters = kmeans.fit_predict(X_scaled)
+
+df['predicted_topic'] = clusters
+
+print("\nContoh hasil klasifikasi topik:")
+print(df[['headline_text', 'predicted_topic']].head(10))
+</code></pre>
+      </div>
+    </div>
+
+     <!-- UTS -->
+    <div id="uts1" class="content">
+      <h1>Klasifikasi Berita</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+import numpy as np
+import re
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from scipy.sparse import hstack, csr_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+import joblib
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+file_path = "berita_.csv"  
+df = pd.read_csv(file_path, engine='python', encoding='utf-8', on_bad_lines='skip')
+
+</code></pre>
+      </div>
+#membaca data
+col_lengths = {col: df[col].astype(str).map(len).median() for col in df.columns}
+col_uniques = {col: df[col].nunique(dropna=True) for col in df.columns}
+col_info = pd.DataFrame({"median_len": col_lengths, "n_unique": col_uniques}).sort_values("median_len", ascending=False)
+text_col = col_info.index[0]
+possible_labels = col_info[(col_info.index != text_col) & (col_info['n_unique'] <= 100)].sort_values('n_unique')
+label_col = possible_labels.index[0] if not possible_labels.empty else col_info.index[1]
+print("Text column:", text_col, "Label column:", label_col)
+
+df = df[[text_col, label_col]].rename(columns={text_col: 'text', label_col: 'label'}).dropna()
+df['text'] = df['text'].astype(str)
+df['label'] = df['label'].astype(str)
+
+       <div class="code-box">
+<pre><code class="language-python">
+fallback_stopwords = {
+    "yang","dan","di","ke","untuk","dari","dengan","pada","adalah","itu","ini","saya","kita","kamu","mereka",
+    "telah","akan","juga","nya","saja","sebagai","oleh","atau","jika","karena","dapat","lebih","sudah","tidak",
+    "masih","tersebut","apa","siapa","kenapa","bagaimana","sebuah","setiap","dalam","hingga","yg","dgn","pd"
+}
+def preprocess_simple(text):
+    text = text.lower()
+    text = re.sub(r'http\S+',' ', text)
+    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    tokens = text.split()
+    tokens = [t for t in tokens if t not in fallback_stopwords and len(t) > 2 and not t.isdigit()]
+    return " ".join(tokens)
+
+df['clean'] = df['text'].apply(preprocess_simple)
+print(df[['text', 'clean']].head())
+
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+# LDA
+count_vectorizer = CountVectorizer(max_df=0.95, min_df=2)
+dtm = count_vectorizer.fit_transform(df['clean'])
+
+n_topics = 10
+lda = LatentDirichletAllocation(n_components=n_topics, random_state=42, learning_method='batch', max_iter=10)
+lda_topics = lda.fit_transform(dtm)
+
+tfidf = TfidfVectorizer(max_df=0.95, min_df=2)
+tfidf_features = tfidf.fit_transform(df['clean'])
+
+#mix LDA TF-IDF
+lda_sparse = csr_matrix(lda_topics)
+X = hstack([tfidf_features, lda_sparse])
+y = df['label']
+</code></pre>
+      </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+nb = MultinomialNB(alpha=1.0)
+nb.fit(X_train, y_train)
+y_pred_nb = nb.predict(X_test)
+
+svm = LinearSVC(C=1.0, max_iter=10000)
+svm.fit(X_train, y_train)
+y_pred_svm = svm.predict(X_test)
+
+print("Model Naive Bayes dan SVM berhasil dilatih.")
+
+</code></pre>
+      </div>
+print("Naive Bayes accuracy:", accuracy_score(y_test, y_pred_nb))
+print(classification_report(y_test, y_pred_nb))
+
+print("SVM accuracy:", accuracy_score(y_test, y_pred_svm))
+print(classification_report(y_test, y_pred_svm))
+       <div class="code-box">
+<pre><code class="language-python">
+
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+def get_top_words(model, feature_names, n_top_words=12):
+    topics = []
+    for topic_idx, topic in enumerate(model.components_):
+        top_idx = topic.argsort()[::-1][:n_top_words]
+        topics.append([feature_names[i] for i in top_idx])
+    return topics
+
+feature_names = count_vectorizer.get_feature_names_out()
+top_words = get_top_words(lda, feature_names)
+for i, words in enumerate(top_words):
+    print(f"Topic {i}: {', '.join(words)}")
+
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+# ----------------------------------------------------------
+# 7. Evaluasi dan visualisasi hasil
+# ----------------------------------------------------------
+from sklearn.metrics import accuracy_score
+
+acc_nb = accuracy_score(y_test, y_pred_nb)
+acc_svm = accuracy_score(y_test, y_pred_svm)
+
+print("\n=== Evaluasi Model ===")
+print(f"Naive Bayes accuracy: {acc_nb:.3f}")
+print(f"SVM accuracy: {acc_svm:.3f}")
+
+</code></pre>
+      </div>
+plt.bar(['Naive Bayes', 'SVM'], [acc_nb, acc_svm], color=['green', 'blue'])
+plt.title("Perbandingan Akurasi Model")
+plt.ylabel("Akurasi")
+plt.ylim(0, 1)
+plt.show()
+      <div class="code-box">
+<pre><code class="language-python">
+
+</code></pre>
+      </div>
+  </div>
+</div>
+
+  <!-- Script untuk switch konten -->
+  <script>
+    function showContent(id) {
+      const contents = document.querySelectorAll('.content');
+      contents.forEach(c => c.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+  </script>
+</body>
+</html>

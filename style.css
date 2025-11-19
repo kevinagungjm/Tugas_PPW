@@ -1,0 +1,74 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  display: flex;           /* bikin sidebar dan main sejajar */
+  min-height: 100vh;       /* tinggi penuh layar */
+}
+
+/* Sidebar selalu ada di kiri */
+.sidebar {
+  width: 250px;
+  background: #333;
+  color: #fff;
+  padding: 20px;
+  flex-shrink: 0;          /* jangan mengecil */
+}
+
+.sidebar img {
+  width: 150px;          /* ukuran kotak */
+  height: 150px;
+  object-fit: cover;     /* isi penuh kotak */
+  object-position: top;  /* fokus bagian atas, bawah terpotong */
+  border-radius: 0;
+  display: block;
+  margin: 0 auto 15px;
+}
+
+
+.sidebar h2 {
+  text-align: center;
+  margin: 5px 0;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  margin: 10px 0;
+}
+
+.sidebar ul li a {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Konten utama */
+.main {
+  flex: 1;
+  padding: 30px;
+  background: #f4f4f4;
+  overflow-y: auto;        /* kalau konten panjang bisa scroll */
+}
+
+/* Kotak kode */
+.code-box {
+  max-height: 300px;     
+  max-width: 90%;        
+  overflow-x: auto;      
+  overflow-y: auto;      
+  white-space: pre;      
+  background: #2d2d2d;   
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  margin: 20px auto;
+}
+
+.content {
+  display: none;
+}
+.content.active {
+  display: block;
+}
