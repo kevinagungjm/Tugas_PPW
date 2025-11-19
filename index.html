@@ -710,14 +710,14 @@ print("Model Naive Bayes dan SVM berhasil dilatih.")
 
 </code></pre>
       </div>
+
+       <div class="code-box">
+<pre><code class="language-python">
 print("Naive Bayes accuracy:", accuracy_score(y_test, y_pred_nb))
 print(classification_report(y_test, y_pred_nb))
 
 print("SVM accuracy:", accuracy_score(y_test, y_pred_svm))
 print(classification_report(y_test, y_pred_svm))
-       <div class="code-box">
-<pre><code class="language-python">
-
 </code></pre>
       </div>
 
@@ -754,6 +754,8 @@ print(f"SVM accuracy: {acc_svm:.3f}")
 
 </code></pre>
       </div>
+       <div class="code-box">
+<pre><code class="language-python">
 plt.bar(['Naive Bayes', 'SVM'], [acc_nb, acc_svm], color=['green', 'blue'])
 plt.title("Perbandingan Akurasi Model")
 plt.ylabel("Akurasi")
@@ -872,6 +874,7 @@ for c in sorted(df['cluster'].unique()):
 </body>
 
 </html>
+
 
 
 
