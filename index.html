@@ -30,6 +30,7 @@
       <li><a href="#" onclick="showContent('tugas7')">LDA</a></li>
       <li><a href="#" onclick="showContent('uts1')">UTS 1</a></li>
       <li><a href="#" onclick="showContent('uts2')">UTS 2</a></li>
+      <li><a href="#" onclick="showContent('tugas8')">Web Usage Mining</a></li>
     </ul>
   </div>
 
@@ -1052,6 +1053,136 @@ for c in sorted(df['cluster'].unique()):
 </code></pre>
       </div>
   </div> 
+
+    <!-- Tugas 8 -->
+    <div id="tugas8" class="content">
+      <h1>Web Usage Mining</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+df = pd.read_csv("data.csv")
+df.head()
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+import re
+
+def is_html(url):
+    if not isinstance(url, str):
+        return False
+    url = url.lower()
+
+    # File HTML
+    if url.endswith(".html") or url.endswith(".htm"):
+        return True
+
+    # URL tanpa ekstensi → dianggap halaman
+    # Contoh: /mission, /home, /about
+    if re.match(r"^.*/[^/\.]+$", url):
+        return True
+
+    return False
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+#filter cuma halaman .HTML 
+df_html = df[df['url'].apply(is_html)].reset_index(drop=True)
+df_html.head()
+</code></pre>
+      </div>
+
+      <div class="code-box">
+<pre><code class="language-python">
+df_html['datetime'] = pd.to_datetime(df_html['time'], unit='s')
+df_html = df_html.sort_values(by=['host', 'datetime'])
+df_html.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+
+TIMEOUT = pd.Timedelta(minutes=30)
+
+def assign_session(group):
+    group = group.sort_values("datetime")
+    time_diff = group["datetime"].diff()
+    session_id = (time_diff > TIMEOUT).cumsum()
+    group["session_id"] = session_id
+    return group
+
+df_session = df_html.groupby("host").apply(assign_session)
+df_session = df_session.reset_index(drop=True)
+df_session.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+#perjalanan pengguna melalui website.
+clickstream = (
+    df_session.groupby(["host", "session_id"])["url"]
+    .apply(list)
+    .reset_index()
+)
+
+clickstream.head()
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+df_session.groupby("host")["session_id"].nunique().describe()
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+clickstream["len"] = clickstream["url"].apply(len)
+clickstream["len"].describe()
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install mlxtend
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+#Mencari pola halaman yang sering muncul bersama
+atau urutan halaman yang sering terjadi.
+!pip install prefixspan
+
+from prefixspan import PrefixSpan
+
+ps = PrefixSpan(clickstream['url'].tolist())
+patterns = ps.frequent(10)
+patterns[:20]
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install prefixspan
+
+from prefixspan import PrefixSpan
+ps = PrefixSpan(clickstream["url"].tolist())
+ps.topk(10)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install plotly
+
+import plotly.graph_objects as go
+
+</code></pre>
+      </div>
+    </div>
 </div>
 
   <!-- Script untuk switch konten -->
@@ -1065,6 +1196,7 @@ for c in sorted(df['cluster'].unique()):
 </body>
 
 </html>
+
 
 
 
