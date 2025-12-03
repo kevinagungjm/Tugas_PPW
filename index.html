@@ -32,9 +32,9 @@
       <li><a href="#" onclick="showContent('uts2')">UTS 2</a></li>
       <li><a href="#" onclick="showContent('tugas8')">Web Usage Mining</a></li>
       <li><a href="#" onclick="showContent('tugas9')">Tabel Web Usage Mining</a></li>
-      <li><a href="#" onclick="showContent('tugas10')">Graph Facebook</a></li>
-      <li><a href="#" onclick="showContent('tugas11')">Crawling X/Twitter</a></li>
-      <li><a href="#" onclick="showContent('tugas12')">Revisi TF-IDF & Word Embedding</a></li>
+      <li><a href="#" onclick="showContent('tugas11')">Graph Facebook</a></li>
+      <li><a href="#" onclick="showContent('tugas12')">Crawling X/Twitter</a></li>
+      <li><a href="#" onclick="showContent('tugas10')">Revisi TF-IDF & Word Embedding</a></li>
     </ul>
   </div>
 
@@ -1299,6 +1299,247 @@ print("File sukses dibuat!")
 </code></pre>
       </div>
     </div> 
+
+     <!-- Tugas 10 -->
+    <div id="tugas10" class="content">
+      <h1>Revisi TF-IDF & Word Embedding</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install pandas scikit-learn nltk gensim
+
+import pandas as pd
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from gensim.models import Word2Vec
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import re
+
+# download NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# load dataset
+df = pd.read_csv('berita_cnn.csv')
+
+# cek kolom
+print(df.columns)
+# kita pakai kolom 'content' sebagai teks
+df = df.rename(columns={'content':'text'})
+print(df[['text']].head())
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+import re
+from nltk.corpus import stopwords
+import pandas as pd
+
+# pastikan stopwords sudah didownload
+import nltk
+nltk.download('stopwords')
+
+stop_words = set(stopwords.words('indonesian'))
+
+def preprocess_text_simple(text):
+    if pd.isna(text):
+        return ''
+    text = text.lower()
+    text = re.sub(r'\d+', '', text)  # hapus angka
+    text = re.sub(r'[^\w\s]', '', text)  # hapus tanda baca
+    tokens = text.split()  # pakai split sederhana, ganti word_tokenize
+    tokens = [w for w in tokens if w not in stop_words]
+    return ' '.join(tokens)
+
+df['clean_text'] = df['text'].apply(preprocess_text_simple)
+df['clean_text'].head()
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+# TF-IDF
+tfidf_vectorizer = TfidfVectorizer(max_features=8000)
+tfidf_matrix = tfidf_vectorizer.fit_transform(df['clean_text'])
+print("TF-IDF shape:", tfidf_matrix.shape)
+
+# Tentukan jumlah cluster dengan silhouette score
+sil_scores = {}
+for k in range(2, 7):
+    km = KMeans(n_clusters=k, random_state=42)
+    labels = km.fit_predict(tfidf_matrix)
+    score = silhouette_score(tfidf_matrix, labels)
+    sil_scores[k] = score
+    print(f"k={k} -> silhouette={score:.4f}")
+
+# pilih k terbaik (nilai silhouette tertinggi)
+best_k = max(sil_scores, key=sil_scores.get)
+print("Best k:", best_k)
+
+# final clustering
+kmeans_tfidf = KMeans(n_clusters=best_k, random_state=42)
+df['tfidf_cluster'] = kmeans_tfidf.fit_predict(tfidf_matrix)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+# tokenisasi
+df['tokens'] = df['clean_text'].apply(lambda x: x.split())
+
+# training Word2Vec
+w2v_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=2, workers=4)
+w2v_model.save("berita_cnn_word2vec.model")
+
+# representasi dokumen = rata-rata embedding kata
+def get_doc_vector(tokens):
+    vecs = [w2v_model.wv[w] for w in tokens if w in w2v_model.wv]
+    if len(vecs)==0:
+        return np.zeros(100)
+    return np.mean(vecs, axis=0)
+
+doc_vectors = np.array(df['tokens'].apply(get_doc_vector).tolist())
+
+# clustering
+kmeans_embed = KMeans(n_clusters=best_k, random_state=42)
+df['embed_cluster'] = kmeans_embed.fit_predict(doc_vectors)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+top_n = 12
+tfidf_terms = tfidf_vectorizer.get_feature_names_out()
+tfidf_clusters = {}
+for i in range(best_k):
+    cluster_idx = np.where(df['tfidf_cluster']==i)[0]
+    cluster_tfidf = tfidf_matrix[cluster_idx].mean(axis=0)
+    top_terms_idx = np.argsort(cluster_tfidf.A1)[::-1][:top_n]
+    top_terms = [tfidf_terms[j] for j in top_terms_idx]
+    tfidf_clusters[i] = top_terms
+    print(f"Cluster {i} top terms:", top_terms)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+for i in range(best_k):
+    print(f"\n=== TF-IDF CLUSTER {i} | {'_'.join(tfidf_clusters[i][:3])} ===")
+    cluster_headlines = df[df['tfidf_cluster']==i]['title'].head(5).tolist()
+    for h in cluster_headlines:
+        print("-", h)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+embed_clusters = {}
+for i in range(best_k):
+    cluster_idx = df[df['embed_cluster']==i].index
+    words = [w for tokens in df.loc[cluster_idx,'tokens'] for w in tokens if w in w2v_model.wv]
+    freq = pd.Series(words).value_counts()
+    top_words = freq.head(top_n).index.tolist()
+    embed_clusters[i] = top_words
+    print(f"Embed Cluster {i} top words:", top_words)
+
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+for i in range(best_k):
+    print(f"\n=== EMBED CLUSTER {i} | {'_'.join(embed_clusters[i][:3])} ===")
+    cluster_headlines = df[df['embed_cluster']==i]['title'].head(5).tolist()
+    for h in cluster_headlines:
+        print("-", h)
+
+</code></pre>
+      </div>
+    </div>
+
+         <!-- Tugas 11 -->
+    <div id="tugas11" class="content">
+      <h1>Graph Facebook</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+!pip install python-louvain
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+import networkx as nx
+import matplotlib.pyplot as plt
+import community.community_louvain as community_louvain
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+file_path = "/content/0.edges"   # GANTI jika nama file beda
+
+G = nx.read_edgelist(file_path, nodetype=int)
+
+print("Total Node:", G.number_of_nodes())
+print("Total Edge:", G.number_of_edges())
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+partition = community_louvain.best_partition(G)
+num_communities = len(set(partition.values()))
+
+print("Total Komunitas Terdeteksi:", num_communities)
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+pos = nx.spring_layout(G, k=0.15, iterations=50)
+
+color_map = [partition[n] for n in G.nodes()]
+sizes = [80 + G.degree(n)*3 for n in G.nodes()]
+
+plt.figure(figsize=(16,14))
+nx.draw(
+    G, pos,
+    node_color=color_map,
+    cmap=plt.cm.tab20,
+    node_size=sizes,
+    alpha=0.85,
+    edge_color="gray",
+    linewidths=0.3,
+    with_labels=False
+)
+
+plt.title("Deteksi Komunitas Facebook SNAP (Louvain)", fontsize=20)
+plt.axis("off")
+plt.show()
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+from collections import Counter
+
+community_count = Counter(partition.values())
+community_count
+#(komunitas :anggota(node))
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+deg = dict(G.degree())
+sorted_deg = sorted(deg.items(), key=lambda x: x[1], reverse=True)
+sorted_deg[:10]
+#(node ,degree(hubungan) )
+
+</code></pre>
+      </div>
+    </div>
 </div>
 
   <!-- Script untuk switch konten -->
@@ -1312,6 +1553,7 @@ print("File sukses dibuat!")
 </body>
 
 </html>
+
 
 
 
