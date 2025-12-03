@@ -31,6 +31,10 @@
       <li><a href="#" onclick="showContent('uts1')">UTS 1</a></li>
       <li><a href="#" onclick="showContent('uts2')">UTS 2</a></li>
       <li><a href="#" onclick="showContent('tugas8')">Web Usage Mining</a></li>
+      <li><a href="#" onclick="showContent('tugas9')">Tabel Web Usage Mining</a></li>
+      <li><a href="#" onclick="showContent('tugas10')">Graph Facebook</a></li>
+      <li><a href="#" onclick="showContent('tugas11')">Crawling X/Twitter</a></li>
+      <li><a href="#" onclick="showContent('tugas12')">Revisi TF-IDF & Word Embedding</a></li>
     </ul>
   </div>
 
@@ -1183,6 +1187,118 @@ import plotly.graph_objects as go
 </code></pre>
       </div>
     </div>
+
+       <!-- Tugas 9 -->
+    <div id="tugas" class="content">
+      <h1>Tabel Web Usage Mining</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+import pandas as pd
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+df = pd.read_csv('/content/data.csv')
+df.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+df = df.sort_values(by=['host', 'time'])
+df['time'] = pd.to_numeric(df['time'], errors='coerce')  # memastikan time berupa angka
+df.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+session_threshold = 1800  # 30 menit
+
+# hitung selisih waktu per user
+df['time_diff'] = df.groupby('host')['time'].diff()
+
+# session baru jika selisih waktu > 30 menit
+df['new_session'] = (df['time_diff'] > session_threshold).fillna(False).astype(int)
+
+# hitung nomor session (akumulasi)
+df['session'] = df.groupby('host')['new_session'].cumsum()
+
+df.head(10)
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+df['session_id'] = df['host'].astype(str) + '_S' + df['session'].astype(str)
+df[['host', 'time', 'time_diff', 'session', 'session_id']].head(15)
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+visit_matrix = df.pivot_table(
+    index='session_id',
+    columns='url',
+    values='time',
+    aggfunc='count',
+    fill_value=0
+)
+
+visit_matrix = (visit_matrix > 0).astype(int)
+visit_matrix.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+print("Jumlah Session:", visit_matrix.shape[0])
+print("Jumlah URL unik:", visit_matrix.shape[1])
+print("\nTotal URL unik di data asli:", df['url'].nunique())
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+visit_matrix.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+visit_matrix['host'] = visit_matrix.index.str.split('_S').str[0]
+visit_matrix.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+url_cols = visit_matrix.columns.drop('host')
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+import numpy as np
+
+def mode_binary(series):
+    counts = series.value_counts()
+    if len(counts) == 0:
+        return 0
+    # Jika sama banyak (misal 1 muncul 2x dan 0 muncul 2x), pilih 1 (atau bisa diubah ke 0 jika mau)
+    if len(counts) > 1 and counts.iloc[0] == counts.iloc[1]:
+        return 1
+    return counts.idxmax()
+
+user_summary = visit_matrix.groupby('host')[url_cols].agg(mode_binary)
+user_summary.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+print("Jumlah user:", user_summary.shape[0])
+print("Jumlah kolom (URL):", user_summary.shape[1])
+user_summary.head()
+</code></pre>
+      </div>
+      <div class="code-box">
+<pre><code class="language-python">
+user_summary.to_excel('/content/user_summary_web_usage.xlsx')
+print("File sukses dibuat!")
+</code></pre>
+      </div>
+    </div> 
 </div>
 
   <!-- Script untuk switch konten -->
@@ -1196,6 +1312,7 @@ import plotly.graph_objects as go
 </body>
 
 </html>
+
 
 
 
