@@ -36,6 +36,7 @@
       <li><a href="#" onclick="showContent('tugas12')">Crawling X/Twitter</a></li>
       <li><a href="#" onclick="showContent('tugas10')">Revisi TF-IDF & Word Embedding</a></li>
       <li><a href="#" onclick="showContent('tugas11')">Wordh Graph</a></li>
+      <li><a href="#" onclick="showContent('tugas12')">Load Paper</a></li>
     </ul>
   </div>
 
@@ -1479,7 +1480,7 @@ import community.community_louvain as community_louvain
       </div>
        <div class="code-box">
 <pre><code class="language-python">
-file_path = "/content/0.edges"   # GANTI jika nama file beda
+file_path = "/content/0.edges"  
 
 G = nx.read_edgelist(file_path, nodetype=int)
 
@@ -1682,6 +1683,177 @@ for i in range(20):
 </code></pre>
       </div>
     </div>
+
+     <!-- Tugas 12 -->
+    <div id="tugas12" class="content">
+      <h1>Load Paper</h1>
+      <div class="code-box">
+<pre><code class="language-python">
+#APP.py
+  import streamlit as st
+import matplotlib.pyplot as plt
+import pandas as pd
+import networkx as nx
+from nltk.tokenize import sent_tokenize
+
+from utils import (
+    extract_text_from_pdf,
+    preprocess_text,
+    build_cooccurrence,
+    build_graph,
+    centrality_analysis
+)
+
+st.set_page_config(page_title="Word Graph & Centrality", layout="wide")
+
+st.title("📄 Word Graph & Centrality Analysis")
+
+uploaded_file = st.file_uploader("Upload Paper (PDF)", type=["pdf"])
+
+# ======================================================
+# SEMUA PROSES HARUS DI DALAM BLOK INI
+# ======================================================
+if uploaded_file is not None:
+
+    # 1. Ekstraksi teks
+    text = extract_text_from_pdf(uploaded_file)
+
+    # 2. Tokenisasi kalimat (untuk statistik)
+    sentences = sent_tokenize(text)
+
+    # 3. Preprocessing kata
+    words = preprocess_text(text)
+
+    # Proteksi kalau teks terlalu pendek
+    if len(words) < 10:
+        st.warning("Dokumen terlalu pendek untuk dianalisis.")
+        st.stop()
+
+    # 4. Co-occurrence matrix
+    matrix, unique_words = build_cooccurrence(words)
+
+    # 5. GRAPH (INI YANG HILANG DI KODEMU)
+    G = build_graph(matrix)
+
+    # =========================
+    # STATISTIK
+    # =========================
+    st.subheader("📊 Statistik Teks & Graph")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("Jumlah Kalimat", len(sentences))
+        st.metric("Jumlah Kata Total", len(words))
+        st.metric("Jumlah Kata Unik", len(unique_words))
+
+    with col2:
+        st.metric("Jumlah Node", G.number_of_nodes())
+        st.metric("Jumlah Edge", G.number_of_edges())
+
+    # =========================
+    # WORD GRAPH
+    # =========================
+    st.subheader("📌 Word Graph")
+
+    plt.figure(figsize=(12, 10))
+    pos = nx.spring_layout(G, k=1.5, seed=42)
+    nx.draw(G, pos, node_size=150, with_labels=False)
+    st.pyplot(plt)
+
+    # =========================
+    # CENTRALITY ANALYSIS
+    # =========================
+    st.subheader("📊 Centrality Analysis")
+
+    centralities = centrality_analysis(G)
+
+    for name, values in centralities.items():
+        st.write(f"### {name}")
+
+        df = pd.DataFrame(
+            [(node, unique_words[node], score) for node, score in values.items()],
+            columns=["Node", "Kata", "Score"]
+        )
+
+        df = df.sort_values("Score", ascending=False)
+        st.dataframe(df.head(10))
+
+</code></pre>
+      </div>
+       <div class="code-box">
+<pre><code class="language-python">
+#UTILS.PY
+  import fitz
+import nltk
+import re
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from collections import defaultdict, Counter
+
+nltk.download('punkt')
+nltk.download('punkt_tab')
+nltk.download('stopwords')
+
+def extract_text_from_pdf(pdf_file):
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
+
+def preprocess_text(text):
+    words = word_tokenize(text.lower())
+    words = [
+        w for w in words
+        if re.match(r'^[a-zA-Z]+$', w)
+        and w not in stopwords.words('indonesian')
+    ]
+    return words
+
+def build_cooccurrence(words, window_size=2):
+    co_occurrences = defaultdict(Counter)
+
+    for i, word in enumerate(words):
+        for j in range(max(0, i-window_size), min(len(words), i+window_size+1)):
+            if i != j:
+                co_occurrences[word][words[j]] += 1
+
+    unique_words = list(set(words))
+    word_index = {w: i for i, w in enumerate(unique_words)}
+
+    matrix = np.zeros((len(unique_words), len(unique_words)), dtype=int)
+
+    for word, neighbors in co_occurrences.items():
+        for neighbor, count in neighbors.items():
+            matrix[word_index[word]][word_index[neighbor]] = count
+
+    return matrix, unique_words
+
+def build_graph(matrix):
+    return nx.from_numpy_array(matrix)
+
+def centrality_analysis(G):
+    return {
+        "PageRank": nx.pagerank(G),
+        "Degree Centrality": nx.degree_centrality(G),
+        "Betweenness Centrality": nx.betweenness_centrality(G)
+    }
+
+def draw_graph(G, title, st):
+    plt.figure(figsize=(12,10))
+    pos = nx.spring_layout(G, k=1.5, seed=42)
+    nx.draw(G, pos, with_labels=True, node_size=2000)
+    plt.title(title)
+    st.pyplot(plt)
+
+</code></pre>
+      </div>
+    </div>
 </div>
 
   <!-- Script untuk switch konten -->
@@ -1695,6 +1867,7 @@ for i in range(20):
 </body>
 
 </html>
+
 
 
 
